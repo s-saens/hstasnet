@@ -17,7 +17,7 @@ sys.stdout = open(os.path.join('logs', 'train.log'), 'wt')
 import losses
 from solver import Solver
 from dataset import MUSDB18Dataset
-from hstasnet import HSTasNet
+from hstasnet.hstasnet import HSTasNet
 
 
 def define_args():

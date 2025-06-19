@@ -57,7 +57,7 @@ setuptools==75.1.0
 six==1.16.0
 soundfile==0.12.1
 stack-data==0.2.0
-stempeg==0.2.3
+stempeg==0.2.4
 sympy==1.13.1
 torch==2.5.1
 torchaudio==2.5.1

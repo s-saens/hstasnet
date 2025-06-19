@@ -169,7 +169,7 @@ def data_augmentation_musdb18(database_path_src, database_path_dst, augmentation
             stems_tensor = torch.stack(stems_tensor_list)     
             
             # Re-create the mixture file by summing the sources.
-            stems_tensor[0] = stems_tensor[1:].sum(axis=0)
+            stems_tensor[0] = stems_tensor[1:].sum(dim=0)
 
             # Write the destination folder.
             track_path_dst = os.path.join(subset_path_dst, f'track_1{k:03}00')
@@ -208,14 +208,14 @@ def split_test_and_valid(database_path, test_subset_size=20):
 
 if __name__ == '__main__':
 
-    database_path_src = "/home/ovistetom/Documents/Databases_Local/MUSDB18/musdb18hq"
-    database_path_dst = "/home/ovistetom/Documents/Databases_Local/MUSDB18/musdb18hq_preprocessed"
+    database_path_src = "/home/saens/data/MUSDB18/musdb18hq"
+    database_path_dst = "/home/saens/data/MUSDB18/musdb18hq_preprocessed"
 
-    test_subset = split_test_and_valid(database_path_src, subset_size=20)
+    test_subset = split_test_and_valid(database_path_src)
     preprocess_musdb18(database_path_src, database_path_dst, test_subset)
 
     data_augmentation_musdb18(
-        database_path_src="/home/ovistetom/Documents/Databases_Local/MUSDB18/musdb18hq_preprocessed", 
-        database_path_dst="/home/ovistetom/Documents/Databases_Local/MUSDB18/musdb18hq_augmented", 
+        database_path_src="/home/saens/data/MUSDB18/musdb18hq_preprocessed", 
+        database_path_dst="/home/saens/data/MUSDB18/musdb18hq_augmented", 
         augmentation_ratio=4,
         )
