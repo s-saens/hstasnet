@@ -33,6 +33,7 @@ class Solver:
         self.scheduler = scheduler
         self.num_epochs = args['num_epochs']
         self.loaders = loaders
+        self.tst_loader = loaders['tst_loader']
         self.device = device
         self.model.to(device)
         self.trn_loss_history = torch.zeros(self.num_epochs, device=device)
@@ -41,14 +42,16 @@ class Solver:
 
     def train(self):
 
+        print('[Train Start]')
         for epoch in range(self.running_epoch, self.num_epochs):
 
-            print('---------------------------------------')
+            print(f'epoch {epoch+1:02d} ---------------------------------------')
             
             # Train.
             self.model.train()
             trn_loss = self._run_one_trn_epoch()
 
+            print()
             print(f"Train Summary | Epoch {epoch+1:02d} | Loss = {trn_loss:.3f}")
 
             # Validate.
@@ -56,11 +59,14 @@ class Solver:
             with torch.no_grad():             
                 val_loss = self._run_one_val_epoch()
 
+            print()
             print(f"Valid Summary | Epoch {epoch+1:02d} | Loss = {val_loss:.3f}")
 
             # Update scheduler.
             self.scheduler.step(val_loss)
             last_lr = self.scheduler.get_last_lr()[0]
+
+            print()
             print(f"\tLearning rate = {last_lr:.6f}")
 
             # Save model and solver.

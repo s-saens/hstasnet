@@ -1,24 +1,12 @@
 import os
-import sys
 import torch
 from torch.utils.data import DataLoader
 from datetime import datetime
 
-
-# Add necessary directories to the path.
-parent_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(parent_directory, 'data'))
-sys.path.append(os.path.join(parent_directory, 'out'))
-sys.path.append(os.path.join(parent_directory, 'hstasnet'))
-sys.path.append(os.path.join(parent_directory, 'logs'))
-sys.stdout = open(os.path.join('logs', 'train.log'), 'wt')
-
-
-import losses
+import losses as losses
 from solver import Solver
 from dataset import MUSDB18Dataset
-from hstasnet.hstasnet import HSTasNet
-
+from hstasnet import HSTasNet
 
 def define_args():
     """Define the training parameters.
@@ -29,10 +17,10 @@ def define_args():
     args = {
         # Training parameters.
         'solver_path': os.path.join('out', 'solvers', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.pkl"),
-        'batch_size': 12,
+        'batch_size': 16,
         'num_epochs': 100,
         'num_workers': 4,
-        'device': torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        'device': torch.device('cuda'),
 
         # Optimizer parameters.
         'learning_rate': 1e-3,
@@ -41,9 +29,9 @@ def define_args():
         # Model parameters.
         'model_name': 'hstasnet',
         'model_path': os.path.join('out', 'models', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.pt"),
-        'model_srcs': ['bass', 'drums', 'other', 'vocals'],
+        'model_srcs': ['other', 'vocals'],
         'model_args': {
-            'num_sources': 4,
+            'num_sources': 2,
             'num_channels': 2,
             'time_win_size': 1024,
             'time_hop_size': 512,
@@ -60,9 +48,7 @@ def define_args():
         'log_path': os.path.join('out', 'logs', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.log"),
         #'save_every': 5,
         }
-
     return args
-
 
 def define_loaders(args):
     """Define DataLoaders for the training, validation, and test sets.
@@ -74,7 +60,7 @@ def define_loaders(args):
         loaders (dict): Dictionary containing the DataLoaders.
     """
         
-    root = os.path.join('/home/ovistetom/Documents/Databases_Local/MUSDB18', 'musdb18hq_augmented')
+    root = os.path.join('data', 'musdb_augmented')
     sources = args['model_srcs']
 
     trn_dataset = MUSDB18Dataset(root, 'train', sources)
@@ -82,9 +68,9 @@ def define_loaders(args):
     tst_dataset = MUSDB18Dataset(root, 'test', sources)
 
     # Define DataLoaders.
-    trn_loader = DataLoader(trn_dataset, batch_size=args['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=args['batch_size'], shuffle=False)
-    tst_loader = DataLoader(tst_dataset, batch_size=args['batch_size'], shuffle=False)
+    trn_loader = DataLoader(trn_dataset, batch_size=args['batch_size'], shuffle=True, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=args['batch_size'], shuffle=False, pin_memory=True)
+    tst_loader = DataLoader(tst_dataset, batch_size=args['batch_size'], shuffle=False, pin_memory=True)
 
     # Store DataLoaders in a dictionary.
     loaders = {
@@ -126,6 +112,20 @@ def main(args, train=True):
     # Define solver.
     solver = Solver(model, criterion, optimizer, scheduler, loaders, args, device=args['device'])
     os.makedirs(os.path.dirname(args['solver_path']), exist_ok=True)
+
+    print(f"Model: {model.__class__.__name__}")
+    print(f"Device: {args['device']}")
+    print(f"Batch size: {args['batch_size']}")
+    print(f"Learning rate: {args['learning_rate']}")
+    print(f"Weight decay: {args['weight_decay']}")
+    print(f"Number of epochs: {args['num_epochs']}")
+    print(f"Training samples: {len(loaders['trn_loader'])}")
+    print(f"Validation samples: {len(loaders['val_loader'])}")
+    print(f"Test samples: {len(loaders['tst_loader'])}")
+    print(f"Model path: {args['model_path']}")
+    print(f"Solver path: {args['solver_path']}")
+    print(f"Log path: {args['log_path']}")
+    print("-" * 50)
 
     # Train model.
     solver = solver.train() if train else solver

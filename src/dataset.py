@@ -39,7 +39,7 @@ class MUSDB18Dataset(Dataset):
         for source in self.sources + ['mixture']:
 
             track = self._get_source(song, source)
-            wav, sr = torchaudio.load(track)
+            wav, sr = self.load_audio(track)
 
             if sr != SAMPLE_RATE:
                 raise ValueError(f"Expected sample rate {SAMPLE_RATE}, but got {sr}.")
@@ -79,6 +79,10 @@ class MUSDB18Dataset(Dataset):
     def __len__(self):
         return len(self.songs)  
   
+    def load_audio(self, file_path):
+        waveform, sample_rate = torchaudio.load(file_path)
+        return waveform, sample_rate
+
 
 if __name__ == '__main__':
 

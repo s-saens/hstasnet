@@ -208,14 +208,14 @@ def split_test_and_valid(database_path, test_subset_size=20):
 
 if __name__ == '__main__':
 
-    database_path_src = "/home/saens/data/MUSDB18/musdb18hq"
-    database_path_dst = "/home/saens/data/MUSDB18/musdb18hq_preprocessed"
+    database_path_src = "./data/musdb_original"
+    database_path_dst = "./data/musdb_processed"
 
     test_subset = split_test_and_valid(database_path_src)
     preprocess_musdb18(database_path_src, database_path_dst, test_subset)
 
     data_augmentation_musdb18(
-        database_path_src="/home/saens/data/MUSDB18/musdb18hq_preprocessed", 
-        database_path_dst="/home/saens/data/MUSDB18/musdb18hq_augmented", 
+        database_path_src="./data/musdb_processed", 
+        database_path_dst="./data/musdb_augmented", 
         augmentation_ratio=4,
         )
