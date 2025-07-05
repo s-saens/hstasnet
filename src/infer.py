@@ -5,6 +5,7 @@ from datetime import datetime
 import argparse
 
 from hstasnet import HSTasNet
+from config import config, get_model_args, get_file_paths
 
 
 def load_model(model_path, device='cpu'):
@@ -17,19 +18,8 @@ def load_model(model_path, device='cpu'):
     Returns:
         model: 로드된 모델
     """
-    # 모델 파라미터 (train.py에서 가져옴)
-    model_args = {
-        'num_sources': 2,
-        'num_channels': 2,
-        'time_win_size': 1024,
-        'time_hop_size': 512,
-        'time_ftr_size': 512,
-        'spec_win_size': 1024,
-        'spec_hop_size': 512,
-        'spec_fft_size': 1024,
-        'rnn_hidden_size': 512,
-        'device': torch.device(device)
-    }
+    # 모델 파라미터 (config에서 가져옴)
+    model_args = get_model_args(torch.device(device))
     
     # 모델 인스턴스 생성
     model = HSTasNet(**model_args)
@@ -46,16 +36,19 @@ def load_model(model_path, device='cpu'):
     return model
 
 
-def load_audio(audio_path, sample_rate=44100):
+def load_audio(audio_path, sample_rate=None):
     """오디오 파일을 로드합니다.
     
     Args:
         audio_path (str): 오디오 파일 경로
-        sample_rate (int): 목표 샘플레이트
+        sample_rate (int): 목표 샘플레이트. None이면 config에서 가져옴.
         
     Returns:
         waveform (torch.Tensor): [C, L] 형태의 오디오 텐서
     """
+    if sample_rate is None:
+        sample_rate = config.data['sample_rate']
+        
     waveform, sr = torchaudio.load(audio_path)
     
     # 샘플레이트 확인 및 리샘플링
@@ -63,12 +56,19 @@ def load_audio(audio_path, sample_rate=44100):
         resampler = torchaudio.transforms.Resample(sr, sample_rate)
         waveform = resampler(waveform)
     
-    # 모노를 스테레오로 변환
-    if waveform.shape[0] == 1:
-        waveform = waveform.repeat(2, 1)
-    # 스테레오 이상을 스테레오로 변환
-    elif waveform.shape[0] > 2:
-        waveform = waveform[:2, :]
+    # 모델 설정에 따라 채널 수 맞추기
+    target_channels = config.model['num_channels']
+    
+    if target_channels == 1:
+        # 모노로 변환
+        if waveform.shape[0] > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)
+    else:
+        # 스테레오로 변환
+        if waveform.shape[0] == 1:
+            waveform = waveform.repeat(2, 1)
+        elif waveform.shape[0] > 2:
+            waveform = waveform[:2, :]
     
     return waveform
 
@@ -86,7 +86,7 @@ def save_separated_sources(separated_sources, output_dir, source_names, timestam
     
     for i, source_name in enumerate(source_names):
         output_path = os.path.join(output_dir, f"{timestamp}_{source_name}.wav")
-        torchaudio.save(output_path, separated_sources[i], 44100)
+        torchaudio.save(output_path, separated_sources[i], config.data['sample_rate'])
         print(f"저장됨: {output_path}")
 
 
@@ -99,14 +99,18 @@ def infer_single_audio(model, audio_path, output_dir, device='cpu'):
         output_dir (str): 출력 디렉토리
         device (str): 사용할 디바이스
     """
-    # 소스 이름들 (train.py에서 가져옴)
-    source_names = ['other', 'vocals']
+    # 소스 이름들과 샘플레이트 (config에서 가져옴)
+    source_names = config.data['sources']
+    sample_rate = config.data['sample_rate']
     
     # 타임스탬프 생성
     timestamp = datetime.now().strftime('%Y%m%d-%H%M')
     
     print(f"오디오 로드 중: {audio_path}")
-    waveform = load_audio(audio_path)
+    waveform = load_audio(audio_path, sample_rate)
+    
+    # 원본 길이 저장
+    original_length = waveform.shape[-1]
     
     # 배치 차원 추가: [C, L] -> [1, C, L]
     waveform = waveform.unsqueeze(0)
@@ -115,7 +119,8 @@ def infer_single_audio(model, audio_path, output_dir, device='cpu'):
     print("소스 분리 수행 중...")
     with torch.no_grad():
         # 모델 추론: [1, C, L] -> [1, S, C, L]
-        separated = model(waveform)
+        # 원본 길이를 전달하여 패딩 적용
+        separated = model(waveform, length=original_length)
         
         # 배치 차원 제거: [1, S, C, L] -> [S, C, L]
         separated = separated.squeeze(0)
@@ -130,15 +135,17 @@ def infer_single_audio(model, audio_path, output_dir, device='cpu'):
 
 
 def main():
+    file_paths = get_file_paths(datetime.now().strftime('%Y%m%d'))  # 기본 날짜 사용
+    
     parser = argparse.ArgumentParser(description='HSTasNet 모델을 이용한 소스 분리')
     parser.add_argument('--model_path', type=str, 
-                       default='out/models/hstasnet_20250701.pt',
+                       default=file_paths['model_path'],
                        help='훈련된 모델 파일 경로')
     parser.add_argument('--input_audio', type=str, 
                        default='./test.wav',
                        help='입력 오디오 파일 경로')
     parser.add_argument('--output_dir', type=str, 
-                       default='out/separated',
+                       default=file_paths['output_dir'],
                        help='출력 디렉토리')
     parser.add_argument('--device', type=str, 
                        default='cuda' if torch.cuda.is_available() else 'cpu',

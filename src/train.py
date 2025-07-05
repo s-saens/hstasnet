@@ -5,49 +5,42 @@ from datetime import datetime
 
 import losses as losses
 from solver import Solver
-from dataset import MUSDB18Dataset
+from dataset import HSTNDataSet
 from hstasnet import HSTasNet
+from config import config, get_model_args, get_file_paths
 
 def define_args():
-    """Define the training parameters.
+    """Define the training parameters from config.
 
     Returns:
         args (dict): A dictionary containing the parameters for the training routine and the model.
     """
+    file_paths = get_file_paths()
+    
     args = {
         # Training parameters.
-        'solver_path': os.path.join('out', 'solvers', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.pkl"),
-        'batch_size': 16,
-        'num_epochs': 100,
-        'num_workers': 4,
-        'device': torch.device('cuda'),
+        'solver_path': file_paths['solver_path'],
+        'batch_size': config.training['batch_size'],
+        'num_epochs': config.training['num_epochs'],
+        'num_workers': config.training['num_workers'],
+        'device': torch.device(config.training['device']),
 
         # Optimizer parameters.
-        'learning_rate': 1e-3,
-        'weight_decay': 1e-5,
+        'learning_rate': config.training['learning_rate'],
+        'weight_decay': config.training['weight_decay'],
 
         # Model parameters.
-        'model_name': 'hstasnet',
-        'model_path': os.path.join('out', 'models', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.pt"),
-        'model_srcs': ['other', 'vocals'],
-        'model_args': {
-            'num_sources': 2,
-            'num_channels': 2,
-            'time_win_size': 1024,
-            'time_hop_size': 512,
-            'time_ftr_size': 512,
-            'spec_win_size': 1024,
-            'spec_hop_size': 512,
-            'spec_fft_size': 1024,
-            'rnn_hidden_size': 512,            
-            },
+        'model_name': config.model['name'],
+        'model_path': file_paths['model_path'],
+        'model_srcs': config.data['sources'],
+        'model_args': get_model_args(),
 
         # Other parameters.
-        'continue_from': None, #os.path.join('out', 'solvers', 'hstasnet_20250121.pkl'),
-        #'from_epoch': 48,
-        'log_path': os.path.join('out', 'logs', f"hstasnet_{datetime.today().strftime('%Y%m%d')}.log"),
-        #'save_every': 5,
-        }
+        'continue_from': config.other['continue_from'],
+        'log_path': file_paths['log_path'],
+        'data_root': config.data['root'],
+        'sample_rate': config.data['sample_rate'],
+    }
     return args
 
 def define_loaders(args):
@@ -60,17 +53,17 @@ def define_loaders(args):
         loaders (dict): Dictionary containing the DataLoaders.
     """
         
-    root = os.path.join('data', 'musdb_augmented')
+    root = args['data_root']
     sources = args['model_srcs']
 
-    trn_dataset = MUSDB18Dataset(root, 'train', sources)
-    val_dataset = MUSDB18Dataset(root, 'valid', sources)
-    tst_dataset = MUSDB18Dataset(root, 'test', sources)
+    trn_dataset = HSTNDataSet(root, 'train', sources)
+    val_dataset = HSTNDataSet(root, 'valid', sources)
+    tst_dataset = HSTNDataSet(root, 'test', sources)
 
     # Define DataLoaders.
-    trn_loader = DataLoader(trn_dataset, batch_size=args['batch_size'], shuffle=True, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=args['batch_size'], shuffle=False, pin_memory=True)
-    tst_loader = DataLoader(tst_dataset, batch_size=args['batch_size'], shuffle=False, pin_memory=True)
+    trn_loader = DataLoader(trn_dataset, batch_size=args['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=args['batch_size'], shuffle=False)
+    tst_loader = DataLoader(tst_dataset, batch_size=args['batch_size'], shuffle=False)
 
     # Store DataLoaders in a dictionary.
     loaders = {

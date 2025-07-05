@@ -38,6 +38,11 @@ class Solver:
         self.model.to(device)
         self.trn_loss_history = torch.zeros(self.num_epochs, device=device)
         self.val_loss_history = torch.zeros(self.num_epochs, device=device)
+        
+        # Early stopping 파라미터 추가
+        self.patience = args.get('patience', 0)  # 기본값 0 (early stopping 비활성화)
+        self.min_delta = args.get('min_delta', 0.0)  # 최소 개선량
+        
         self._reset()
 
     def train(self):
@@ -72,17 +77,29 @@ class Solver:
             # Save model and solver.
             self.trn_loss_history[epoch] = trn_loss
             self.val_loss_history[epoch] = val_loss
-            if val_loss < self.best_val_loss:
+            
+            # Early stopping 체크
+            if val_loss < self.best_val_loss - self.min_delta:
                 self.best_val_loss = val_loss
+                self.early_stop_counter = 0
                 self.model.save_to_path(self.args['model_path'])
                 print(f"Best model saved at '{self.args['model_path']}'.")
                 self.save_to_path(self.args['solver_path'])
                 print(f"Solver saved at '{self.args['solver_path']}'.")
+            else:
+                self.early_stop_counter += 1
+                if self.patience > 0 and self.early_stop_counter >= self.patience:
+                    print(f"Early stopping triggered after {self.patience} epochs without improvement.")
+                    self.early_stopped = True
+                    break
 
             self.running_epoch += 1
         
         print('---------------------------------------')
-
+        
+        if self.early_stopped:
+            print(f"Training stopped early at epoch {epoch+1} due to no improvement for {self.patience} epochs.")
+        
         return self
 
     def _run_one_trn_epoch(self):
@@ -170,6 +187,10 @@ class Solver:
 
         self.prev_val_loss = float('inf')
         self.best_val_loss = float('inf')
+        
+        # Early stopping 관련 변수 초기화
+        self.early_stop_counter = 0
+        self.early_stopped = False
 
     def _serialize(self):
         """Serialize the solver into a dictionary.
@@ -186,6 +207,9 @@ class Solver:
             'running_epoch': self.running_epoch,
             'trn_loss_history': self.trn_loss_history.tolist(),
             'val_loss_history': self.val_loss_history.tolist(),
+            'early_stop_counter': self.early_stop_counter,
+            'early_stopped': self.early_stopped,
+            'best_val_loss': self.best_val_loss,
             }
         return package
     
@@ -201,6 +225,11 @@ class Solver:
         self.running_epoch = self.args['from_epoch'] if self.args['from_epoch'] else package['running_epoch']
         self.trn_loss_history[:self.running_epoch] = torch.Tensor(package['trn_loss_history'][:self.running_epoch]).to(self.device)
         self.val_loss_history[:self.running_epoch] = torch.Tensor(package['val_loss_history'][:self.running_epoch]).to(self.device)
+        
+        # Early stopping 상태 복원
+        self.early_stop_counter = package.get('early_stop_counter', 0)
+        self.early_stopped = package.get('early_stopped', False)
+        self.best_val_loss = package.get('best_val_loss', float('inf'))
     
     def save_to_path(self, solver_path):
         """Save the solver to a given file path.

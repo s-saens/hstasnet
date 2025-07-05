@@ -19,7 +19,7 @@ class HSTasNet(nn.Module):
                  spec_fft_size: int = 1024,
                  rnn_hidden_size: int = 1000,
                  rnn_num_layers: int = 1,
-                 device=torch.device('cpu'),
+                 device=torch.device('cuda'),
                  ):
 
         super().__init__()

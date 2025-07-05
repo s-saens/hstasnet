@@ -12,3 +12,9 @@ Some remarks:
 - The model is trained using the open MUSDB18-HQ dataset (<https://sigsep.github.io/datasets/musdb.html>). 
 
 Use `torchaudio.datasets.MUSDB_HQ` to download the database, then run the script `utils/preprocess_musdb.py` to run preprocessing routines.
+
+## Dataset Structure
+
+1. train, test, valid
+2. {track name}
+3. mix.wav, 

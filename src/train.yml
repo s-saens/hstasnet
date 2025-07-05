@@ -1,0 +1,46 @@
+# HSTasNet 모델 및 훈련 설정
+
+# 데이터 관련 설정
+data:
+  root: "data/saens_hstn"
+  sample_rate: 22050
+  sources: ["piano"]  # 분리할 소스들
+  all_sources: ["piano", "others"]  # 전체 가능한 소스들
+
+# 모델 관련 설정
+model:
+  name: "hstn_piano"
+  num_sources: 1
+  num_channels: 1
+  time_win_size: 512
+  time_hop_size: 128
+  time_ftr_size: 512
+  spec_win_size: 512
+  spec_hop_size: 128
+  spec_fft_size: 512
+  rnn_hidden_size: 512
+  rnn_num_layers: 4
+
+# 훈련 관련 설정
+training:
+  batch_size: 12
+  num_epochs: 100
+  num_workers: 4
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  device: "cuda"
+  patience: 10
+  min_delta: 0.000001
+
+# 경로 관련 설정
+paths:
+  output_dir: "out"
+  models_dir: "out/models"
+  solvers_dir: "out/solvers"
+  logs_dir: "out/logs"
+  separated_dir: "out/separated"
+
+# 기타 설정
+other:
+  continue_from: null
+  save_every: 10
